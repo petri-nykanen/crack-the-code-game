@@ -31,7 +31,7 @@ const DigitBox = (props: Props) => {
 
 	const inactiveDigitStyle = {
 		border: "2px solid black",
-		color:"darkgray",
+		color: "darkgray",
 		backgroundColor: "gray",
 		marginLeft: "1%",
 		fontSize: 50,
@@ -43,6 +43,10 @@ const DigitBox = (props: Props) => {
 	const [selectedDigit, setSelectedDigit] = useState([]);
 	const [inactiveDigit, setInactiveDigit] = useState([]);
 
+	/**
+	 * Handles highlighting of a selected number
+	 * @param digit Left-clicked number
+	 */
 	const handleDigitSelect = (digit: number) => {
 		setSelectedDigit([...selectedDigit, digit]);
 
@@ -56,6 +60,10 @@ const DigitBox = (props: Props) => {
 		}
 	};
 
+	/**
+	 * Handles deactivation of a selected number
+	 * @param digit Right-clicked number
+	 */
 	const handleDigitDeactivation = (digit: number) => {
 		setInactiveDigit([...inactiveDigit, digit]);
 

@@ -109,17 +109,15 @@ function App() {
     };
 
     const pickCluesForSecret = (secret: number[]): Clue[] | null => {
-        const allTypes: ClueType[] = [
-            "none",
-            "two_wrong",
-            "one_right_place",
-            "one_wrong_place",
-            "two_right_place",
-        ];
+        const singleDigitTypes: ClueType[] = ["none", "one_right_place", "one_wrong_place"];
+        const twoDigitTypes: ClueType[] = ["two_wrong", "two_right_place"];
 
         for (let attempt = 0; attempt < 2000; attempt++) {
-            const shuffled = [...allTypes].sort(() => Math.random() - 0.5);
-            const types = shuffled.slice(0, 4);
+            // Pick exactly one of the two-digit clue types (never both)
+            const chosenTwoDigitType = twoDigitTypes[Math.floor(Math.random() * 2)];
+            const types: ClueType[] = [...singleDigitTypes, chosenTwoDigitType];
+            
+            // const shuffled = types.sort(() => Math.random() - 0.5);
 
             const clues: Clue[] = [];
             let valid = true;

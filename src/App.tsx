@@ -1,176 +1,244 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import DigitBox from "./components/digit-box";
 import "./app.css";
 
-interface DigitsToGuess {
-	correct: number[];
-	incorrect: number[];
-	firstGuess: number[];
-	secondGuess: number[];
-	thirdGuess: number[];
+type ClueType =
+    | "none"
+    | "two_wrong"
+    | "one_right_place"
+    | "one_wrong_place"
+    | "two_right_place";
+
+interface Clue {
+    digits: number[];
+    type: ClueType;
 }
 
+interface Puzzle {
+    secret: number[];
+    clues: Clue[];
+}
+
+/**
+ * Top-level app component.
+ */
 function App() {
-	const [digits, setDigits] = useState<DigitsToGuess>();
-	const guessRef = useRef<HTMLInputElement>(null);
-	const [youWin, setYouWin] = useState(false);
+    const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
+    const [guessDigits, setGuessDigits] = useState<number[]>([]);
+    const [youWin, setYouWin] = useState(false);
 
-	/**One of the numbers is correct, but in wrong place*/
-	const formFirstClue = (
-		correctArr: number[],
-		incorrectArr: number[],
-	): number[] => {
-		const correctDigit =
-			correctArr[Math.floor(Math.random() * correctArr.length)];
-		const incorrectDigit =
-			incorrectArr[Math.floor(Math.random() * incorrectArr.length)];
-		const clueArr = [
-			correctDigit,
-			incorrectDigit,
-			Math.floor(Math.random() * 9),
-		];
+    const compareSecret = (
+        secret: number[],
+        guess: number[],
+    ): { correctPlace: number; wrongPlace: number } => {
+        let correctPlace = 0;
+        let wrongPlace = 0;
+        const secretUsed = [false, false, false];
+        const guessUsed = [false, false, false];
 
-		//1st if: check that correct digit isn't in the same spot as in the clue array
-		if (clueArr.indexOf(correctDigit) === correctArr.indexOf(correctDigit))
-			return formFirstClue(correctArr, incorrectArr);
-		//2nd if: check that digits are unique and not from correct array
-		if (Array.from(new Set(clueArr.concat(correctArr))).length < 5)
-			return formFirstClue(correctArr, incorrectArr);
-		return clueArr;
-	};
+        for (let i = 0; i < 3; i++) {
+            if (secret[i] === guess[i]) {
+                correctPlace++;
+                secretUsed[i] = true;
+                guessUsed[i] = true;
+            }
+        }
 
-	/**One of the numbers is correct, but in wrong place*/
-	const formSecondClue = (
-		correctArr: number[],
-		incorrectArr: number[],
-	): number[] => {
-		const correctDigit =
-			correctArr[Math.floor(Math.random() * correctArr.length)];
-		const incorrectDigit =
-			incorrectArr[Math.floor(Math.random() * incorrectArr.length)];
-		const clueArr = [
-			correctDigit,
-			incorrectDigit,
-			Math.floor(Math.random() * 9),
-		];
+        for (let i = 0; i < 3; i++) {
+            if (guessUsed[i]) continue;
+            for (let j = 0; j < 3; j++) {
+                if (secretUsed[j]) continue;
+                if (guess[i] === secret[j]) {
+                    wrongPlace++;
+                    secretUsed[j] = true;
+                    guessUsed[i] = true;
+                    break;
+                }
+            }
+        }
 
-		//1st if: check that correct digit isn't in the same spot as in the clue array
-		if (clueArr.indexOf(correctDigit) !== correctArr.indexOf(correctDigit))
-			return formSecondClue(correctArr, incorrectArr);
-		//2nd if: check that digits are unique and not from correct array
-		if (Array.from(new Set(clueArr.concat(correctArr))).length < 5)
-			return formSecondClue(correctArr, incorrectArr);
-		return clueArr;
-	};
+        return { correctPlace, wrongPlace };
+    };
 
-	/**One of the numbers is correct, but in wrong place*/
-	const formThirdClue = (
-		correctArr: number[],
-		incorrectArr: number[],
-	): number[] => {
-		const correctDigit =
-			correctArr[Math.floor(Math.random() * correctArr.length)];
-		const correctDigit2 =
-			correctArr[Math.floor(Math.random() * correctArr.length)];
+    const matchesClueType = (
+        secret: number[],
+        guess: number[],
+        type: ClueType,
+    ): boolean => {
+        const { correctPlace, wrongPlace } = compareSecret(secret, guess);
+        switch (type) {
+            case "none":
+                return correctPlace === 0 && wrongPlace === 0;
+            case "two_wrong":
+                return correctPlace === 0 && wrongPlace === 2;
+            case "one_right_place":
+                return correctPlace === 1 && wrongPlace === 0;
+            case "one_wrong_place":
+                return correctPlace === 0 && wrongPlace === 1;
+            case "two_right_place":
+                return correctPlace === 2 && wrongPlace === 0;
+            default:
+                return false;
+        }
+    };
 
-		if (correctDigit === correctDigit2)
-			return formThirdClue(correctArr, incorrectArr);
+    const allUniqueTriples = (): number[][] => {
+        const out: number[][] = [];
+        for (let a = 0; a <= 9; a++) {
+            for (let b = 0; b <= 9; b++) {
+                if (b === a) continue;
+                for (let c = 0; c <= 9; c++) {
+                    if (c === a || c === b) continue;
+                    out.push([a, b, c]);
+                }
+            }
+        }
+        return out;
+    };
 
-		const incorrectDigit =
-			incorrectArr[Math.floor(Math.random() * incorrectArr.length)];
-		const clueArr = [correctDigit, incorrectDigit, correctDigit2];
+    const TRIPLES = allUniqueTriples();
 
-		if (clueArr.indexOf(correctDigit) === correctArr.indexOf(correctDigit))
-			return formThirdClue(correctArr, incorrectArr);
-		if (clueArr.indexOf(correctDigit2) === correctArr.indexOf(correctDigit2))
-			return formThirdClue(correctArr, incorrectArr);
+    const solveCandidates = (clues: Clue[]): number[][] => {
+        return TRIPLES.filter((candidate) =>
+            clues.every((clue) => matchesClueType(candidate, clue.digits, clue.type)),
+        );
+    };
 
-		// //1st if: check that correct digit isn't in the same spot as in the clue array
-		// if ((clueArr.indexOf(correctDigit) !== correctArr.indexOf(correctDigit))) return formThirdClue(correctArr, incorrectArr)
-		// //2nd if: check that digits are unique and not from correct array
-		// if (Array.from(new Set(clueArr.concat(correctArr))).length < 5) return formThirdClue(correctArr, incorrectArr)
-		return clueArr;
-	};
+    const validCluesForType = (secret: number[], type: ClueType): number[][] => {
+        return TRIPLES.filter((t) => matchesClueType(secret, t, type));
+    };
 
-	/**
-	 * Validates that the puzzle is possible
-	 * Digits must be deducible, this functions prevents having to guess or 50/50 situations with digit placements
-	 */
-	// const validateClues
+    const pickCluesForSecret = (secret: number[]): Clue[] | null => {
+        const allTypes: ClueType[] = [
+            "none",
+            "two_wrong",
+            "one_right_place",
+            "one_wrong_place",
+            "two_right_place",
+        ];
 
-	const guess = () => {
-		const parsed = Number(digits?.correct.join(""));
-		if (parsed === Number(guessRef.current?.value)) setYouWin(true);
-	};
+        for (let attempt = 0; attempt < 2000; attempt++) {
+            const shuffled = [...allTypes].sort(() => Math.random() - 0.5);
+            const types = shuffled.slice(0, 4);
 
-	/**
-	 * Generates correct and incorrect 3 digits
-	 */
-	const generateDigits = () => {
-		const nums = new Set<number>();
-		// const randomNumber = (Math.random() * 9) + 1;
+            const clues: Clue[] = [];
+            let valid = true;
+            for (const type of types) {
+                const pool = validCluesForType(secret, type);
+                if (pool.length === 0) {
+                    valid = false;
+                    break;
+                }
+                clues.push({ digits: pool[Math.floor(Math.random() * pool.length)], type });
+            }
+            if (!valid) continue;
 
-		while (nums.size !== 6) {
-			nums.add(Math.floor(Math.random() * 10));
-		}
+            const union = new Set<number>();
+            for (const clue of clues) clue.digits.forEach((d) => union.add(d));
+            const allPresent = secret.every((d) => union.has(d));
+            if (!allPresent) continue;
 
-		const numsArr: number[] = Array.from(nums);
-		const correctDigits = numsArr.slice(0, 3);
-		const incorrectDigits = numsArr.slice(3, 6);
-		// const firstClue = Array.from(correctDigits)
-		const firstClue = formFirstClue(correctDigits, incorrectDigits);
-		const secondClue = formSecondClue(correctDigits, incorrectDigits);
-		const thirdClue = formThirdClue(correctDigits, incorrectDigits);
+            const candidates = solveCandidates(clues);
+            if (candidates.length === 1) return clues;
+        }
+        return null;
+    };
 
-		setDigits({
-			...digits,
-			correct: correctDigits,
-			incorrect: incorrectDigits,
-			firstGuess: firstClue,
-			secondGuess: secondClue,
-			thirdGuess: thirdClue,
-		});
-	};
+    const generatePuzzle = (): Puzzle => {
+        const secrets = TRIPLES.slice().sort(() => Math.random() - 0.5);
+        for (const secret of secrets) {
+            const clues = pickCluesForSecret(secret);
+            if (clues) return { secret, clues };
+        }
+        const fallbackSecret = [0, 1, 5];
+        const fallbackClues: Clue[] = [
+            { digits: [4, 7, 6], type: "none" },
+            { digits: [5, 6, 0], type: "two_wrong" },
+            { digits: [0, 4, 6], type: "one_right_place" },
+            { digits: [5, 4, 7], type: "one_wrong_place" },
+        ];
+        return { secret: fallbackSecret, clues: fallbackClues };
+    };
 
-	useEffect(() => {
-		generateDigits();
-	}, []);
+    const handleClueClick = (digit: number) => {
+        setGuessDigits((previous) => {
+            if (previous.includes(digit)) {
+                return previous.filter((item) => item !== digit);
+            }
+            if (previous.length >= 3) return previous;
+            return [...previous, digit];
+        });
+    };
 
-	return (
-		<div
-			style={{
-				margin: "auto",
-				textAlign: "center",
-				marginTop: "10%",
-				width: "50%"
-			}}
-		>
-			One of the numbers is correct, but in wrong place:{" "}
-			<DigitBox digits={digits?.firstGuess} />
-			<br />
-			One of the numbers is correct and in correct place:{" "}
-			<DigitBox digits={digits?.secondGuess} />
-			<br />
-			Two numbers are correct, but in wrong places:{" "}
-			<DigitBox digits={digits?.thirdGuess} />
-			<br />
-			None of the numbers are correct: <DigitBox digits={digits?.incorrect} />
-			<br />
-			<input ref={guessRef} />
-			<br />
-			<button onClick={() => guess()}>Guess</button>
-			<br />
-			{youWin ? (
-				<>
-					Correct: {digits?.correct}
-					<br />
-				</>
-			) : (
-				<></>
-			)}
-			<button onClick={generateDigits}>TEST</button>
-		</div>
-	);
+    const clearGuess = () => setGuessDigits([]);
+
+    const guess = () => {
+        if (!puzzle) return;
+        if (guessDigits.length !== 3) return;
+        if (guessDigits.every((n, i) => n === puzzle.secret[i])) setYouWin(true);
+    };
+
+    useEffect(() => {
+        setPuzzle(generatePuzzle());
+    }, []);
+
+    const regenerate = () => {
+        setGuessDigits([]);
+        setYouWin(false);
+        setPuzzle(generatePuzzle());
+    };
+
+    return (
+        <div
+            style={{
+                margin: "auto",
+                textAlign: "center",
+                marginTop: "10%",
+                width: "50%",
+            }}
+        >
+            {puzzle?.clues.map((c, idx) => (
+                <div key={idx}>
+                    <div style={{ fontWeight: 600 }}>
+                        {(() => {
+                            switch (c.type) {
+                                case "none":
+                                    return "None of the numbers are correct:";
+                                case "two_wrong":
+                                    return "Two numbers are correct, but in wrong places:";
+                                case "one_right_place":
+                                    return "One of the numbers is correct and in correct place:";
+                                case "one_wrong_place":
+                                    return "One of the numbers is correct, but in wrong place:";
+                                case "two_right_place":
+                                    return "Two numbers are correct and in correct places:";
+                                default:
+                                    return "Clue:";
+                            }
+                        })()}
+                    </div>
+                    <DigitBox digits={c.digits} selectedDigits={guessDigits} onDigitClick={handleClueClick} />
+                    <br />
+                </div>
+            ))}
+
+            <div style={{ margin: "1rem 0" }}>
+                <input value={guessDigits.join("")} readOnly />
+                <button onClick={clearGuess} style={{ marginLeft: "0.5rem" }}>
+                    Clear
+                </button>
+            </div>
+            <button onClick={guess}>Guess</button>
+            <br />
+            {youWin ? (
+                <>
+                    Correct: {puzzle?.secret.join("")}
+                    <br />
+                </>
+            ) : null}
+            <button onClick={regenerate}>TEST</button>
+        </div>
+    );
 }
 
 export default App;

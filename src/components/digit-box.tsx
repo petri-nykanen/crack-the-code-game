@@ -1,137 +1,75 @@
-import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 
 interface Props {
-	digits: number;
+    digits?: number[];
+    selectedDigits?: number[];
+    onDigitClick?: (digit: number) => void;
 }
 
-const DigitBox = (props: Props) => {
-	const { digits } = props;
+/**
+ * Render a row of clue digits and expose click callbacks for guess building.
+ * @param props.digits Clue digits to render.
+ * @param props.selectedDigits Currently selected guess digits.
+ * @param props.onDigitClick Callback when a digit is clicked.
+ */
+const DigitBox = ({ digits = [], selectedDigits = [], onDigitClick }: Props) => {
+    const selectedDigitStyle: CSSProperties = {
+        border: "2px solid black",
+        backgroundColor: "pink",
+        marginLeft: "1%",
+        fontSize: 50,
+        padding: "1%",
+        fontFamily: "sans-serif",
+        boxShadow: "0 0 0.75rem purple",
+        userSelect: "none",
+    };
 
-	const selectedDigitStyle = {
-		border: "2px solid black",
-		backgroundColor: "pink",
-		marginLeft: "1%",
-		fontSize: 50,
-		padding: "1%",
-		fontFamily: "sans-serif",
-		boxShadow: "0 0 0.75rem purple",
-		userSelect: "none",
-	};
+    const digitStyle: CSSProperties = {
+        border: "2px solid black",
+        backgroundColor: "white",
+        marginLeft: "1%",
+        fontSize: 50,
+        padding: "1%",
+        fontFamily: "sans-serif",
+        userSelect: "none",
+    };
 
-	const digitStyle = {
-		border: "2px solid black",
-		backgroundColor: "white",
-		marginLeft: "1%",
-		fontSize: 50,
-		padding: "1%",
-		fontFamily: "sans-serif",
-		userSelect: "none",
-	};
+    if (digits.length === 0) return null;
 
-	const inactiveDigitStyle = {
-		border: "2px solid black",
-		color: "darkgray",
-		backgroundColor: "gray",
-		marginLeft: "1%",
-		fontSize: 50,
-		padding: "1%",
-		fontFamily: "sans-serif",
-		userSelect: "none",
-	};
+    const handleDigitClick = (digit: number) => {
+        onDigitClick?.(digit);
+    };
 
-	const [selectedDigit, setSelectedDigit] = useState([]);
-	const [inactiveDigit, setInactiveDigit] = useState([]);
-
-	/**
-	 * Handles highlighting of a selected number
-	 * @param digit Left-clicked number
-	 */
-	const handleDigitSelect = (digit: number) => {
-		setSelectedDigit([...selectedDigit, digit]);
-
-		if (selectedDigit.find((containsDigit) => digit === containsDigit)) {
-			console.log(
-				selectedDigit.filter((containsDigit) => digit !== containsDigit),
-			);
-			setSelectedDigit(
-				selectedDigit.filter((containsDigit) => digit !== containsDigit),
-			);
-		}
-	};
-
-	/**
-	 * Handles deactivation of a selected number
-	 * @param digit Right-clicked number
-	 */
-	const handleDigitDeactivation = (digit: number) => {
-		setInactiveDigit([...inactiveDigit, digit]);
-
-		if (inactiveDigit.find((containsDigit) => digit === containsDigit)) {
-			console.log(
-				inactiveDigit.filter((containsDigit) => digit !== containsDigit),
-			);
-			setInactiveDigit(
-				inactiveDigit.filter((containsDigit) => digit !== containsDigit),
-			);
-		}
-	};
-
-	useEffect(() => {
-		console.log(selectedDigit);
-	}, [selectedDigit]);
-
-	return (
-		<div
-			style={{
-				marginTop: "2%",
-				marginBottom: "1%",
-				display: "flex",
-				justifyContent: "center",
-			}}
-		>
-			{digits
-				?.toString()
-				.split(",")
-				.map((digit) => {
-					return (
-						<motion.div
-							key={null}
-							style={
-								selectedDigit.find((containsDigit) => digit === containsDigit)
-									? selectedDigitStyle
-									: inactiveDigit.find(
-												(containsDigit) => digit === containsDigit,
-											)
-										? inactiveDigitStyle
-										: digitStyle
-							}
-							onClick={() => handleDigitSelect(digit)}
-							onContextMenu={(e) => {
-								e.preventDefault();
-								handleDigitDeactivation(digit);
-							}}
-							animate={
-								selectedDigit.find((containsDigit) => digit === containsDigit)
-									? { scale: [1, 1.2, 1] }
-									: { scale: 1 }
-							}
-							transition={{
-								duration: 1,
-								ease: "easeInOut",
-								repeat: selectedDigit.find(
-									(containsDigit) => digit === containsDigit,
-								)
-									? Number.POSITIVE_INFINITY
-									: 0,
-							}}
-						>
-							{digit}
-						</motion.div>
-					);
-				})}
-		</div>
-	);
+    return (
+        <div
+            style={{
+                marginTop: "2%",
+                marginBottom: "1%",
+                display: "flex",
+                justifyContent: "center",
+            }}
+        >
+            {digits.map((digit, idx) => {
+                const isSelected = selectedDigits.includes(digit);
+                return (
+                    <motion.div
+                        key={`${digit}-${idx}`}
+                        style={isSelected ? selectedDigitStyle : digitStyle}
+                        onClick={() => handleDigitClick(digit)}
+                        animate={isSelected ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+                        transition={{
+                            duration: 1,
+                            ease: "easeInOut",
+                            repeat: isSelected ? Number.POSITIVE_INFINITY : 0,
+                        }}
+                    >
+                        {digit}
+                    </motion.div>
+                );
+            })}
+        </div>
+    );
 };
 
 export default DigitBox;
